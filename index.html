@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lector RSVP</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#16241C">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0E1813;
+    --panel:#16241C;
+    --panel-edge:#28392F;
+    --paper:#F1E8D4;
+    --paper-dim:#C9BFA9;
+    --brass:#C9A227;
+    --brass-light:#E4C158;
+    --rust:#8B4A3A;
+    --muted:#5E7468;
+    --danger:#C95E4A;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    -webkit-tap-highlight-color:transparent;
+    overscroll-behavior:none;
+  }
+  .app{
+    width:100%;
+    max-width:480px;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    padding:env(safe-area-inset-top,18px) 18px env(safe-area-inset-bottom,18px);
+    position:relative;
+  }
+  .hidden{display:none !important;}
+
+  /* ---- Header ---- */
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:.18em;
+    color:var(--brass);
+    text-transform:uppercase;
+    margin:6px 0 2px;
+  }
+  .booktitle{
+    font-family:'Source Serif 4', serif;
+    font-weight:600;
+    font-size:20px;
+    line-height:1.25;
+    color:var(--paper);
+    margin:0 0 14px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  /* ---- Upload screen ---- */
+  .upload-screen{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    gap:18px;
+  }
+  .upload-screen .lede{
+    font-family:'Source Serif 4', serif;
+    font-size:28px;
+    line-height:1.2;
+    color:var(--paper);
+    max-width:320px;
+  }
+  .upload-screen .lede em{ color:var(--brass-light); font-style:normal; }
+  .upload-screen .sub{
+    color:var(--paper-dim);
+    font-size:14px;
+    max-width:300px;
+    line-height:1.5;
+  }
+  .dropzone{
+    width:100%;
+    max-width:320px;
+    border:1.5px dashed var(--brass);
+    border-radius:var(--radius);
+    padding:34px 20px;
+    cursor:pointer;
+    transition:background .15s, border-color .15s;
+    background:rgba(201,162,39,0.04);
+  }
+  .dropzone.drag{ background:rgba(201,162,39,0.12); border-color:var(--brass-light); }
+  .dropzone .icon{
+    font-family:'Source Serif 4', serif;
+    font-size:36px;
+    color:var(--brass);
+    margin-bottom:8px;
+  }
+  .dropzone .cta{
+    font-weight:600;
+    color:var(--paper);
+    font-size:15px;
+    margin-bottom:4px;
+  }
+  .dropzone .hint{
+    color:var(--muted);
+    font-size:12px;
+  }
+  #fileInput{ display:none; }
+
+  .errorBanner, .loadingBanner{
+    font-size:13px;
+    padding:10px 14px;
+    border-radius:10px;
+    margin-top:4px;
+    max-width:320px;
+  }
+  .errorBanner{ background:rgba(201,94,74,0.15); color:#E8AFA3; border:1px solid rgba(201,94,74,0.4); }
+  .loadingBanner{ background:rgba(201,162,39,0.12); color:var(--brass-light); border:1px solid rgba(201,162,39,0.35); }
+
+  /* ---- Reader screen ---- */
+  .reader-screen{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+  }
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .topbar .booktitle{ margin:0; flex:1; }
+  select#chapterSelect{
+    background:var(--panel);
+    color:var(--paper);
+    border:1px solid var(--panel-edge);
+    border-radius:8px;
+    padding:6px 8px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:12px;
+    max-width:120px;
+  }
+
+  .stage{
+    flex:1;
+    min-height:220px;
+    background:var(--panel);
+    border:1px solid var(--panel-edge);
+    border-radius:var(--radius);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    cursor:pointer;
+    user-select:none;
+    overflow:hidden;
+  }
+  .guide-tick{
+    position:absolute;
+    width:1px;
+    height:14px;
+    background:var(--brass);
+    opacity:.6;
+  }
+  .guide-tick.top{ top:18%; }
+  .guide-tick.bottom{ bottom:18%; }
+
+  .wordrow{
+    display:flex;
+    align-items:baseline;
+    font-family:'Source Serif 4', serif;
+    font-weight:600;
+    font-size:clamp(28px, 9vw, 42px);
+    line-height:1;
+    width:100%;
+    padding:0 12px;
+  }
+  #wordLeft{ flex:1; text-align:right; color:var(--paper-dim); white-space:pre; overflow:hidden; }
+  #wordPivot{ color:var(--brass-light); padding:0 1px; position:relative; }
+  #wordRight{ flex:1; text-align:left; color:var(--paper-dim); white-space:pre; overflow:hidden; }
+
+  .stage-hint{
+    position:absolute;
+    bottom:10px;
+    font-size:11px;
+    color:var(--muted);
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .savedBadge{
+    position:absolute;
+    top:10px;
+    right:12px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    letter-spacing:.06em;
+    color:var(--brass-light);
+    background:rgba(201,162,39,0.12);
+    border:1px solid rgba(201,162,39,0.3);
+    padding:3px 8px;
+    border-radius:20px;
+    transition:opacity .2s;
+  }
+
+  .resumeBanner{
+    background:rgba(201,162,39,0.1);
+    border:1px solid rgba(201,162,39,0.35);
+    border-radius:12px;
+    padding:10px 12px;
+    margin-bottom:10px;
+    font-size:12.5px;
+    color:var(--paper);
+  }
+  .resumeActions{
+    display:flex;
+    gap:8px;
+    margin-top:8px;
+  }
+  .resumeBtnPrimary, .resumeBtnGhost{
+    flex:1;
+    border-radius:8px;
+    padding:7px 10px;
+    font-size:12px;
+    font-family:'IBM Plex Sans', sans-serif;
+    cursor:pointer;
+    border:1px solid var(--brass);
+  }
+  .resumeBtnPrimary{
+    background:var(--brass);
+    color:var(--ink);
+    font-weight:600;
+  }
+  .resumeBtnGhost{
+    background:none;
+    color:var(--paper-dim);
+    border-color:var(--panel-edge);
+  }
+
+  .progress{
+    height:4px;
+    background:var(--panel-edge);
+    border-radius:2px;
+    margin:12px 0 4px;
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    width:0%;
+    background:var(--brass);
+    transition:width .15s linear;
+  }
+  .progress-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--muted);
+    text-align:right;
+    margin-bottom:14px;
+  }
+
+  .controls{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:22px;
+    margin-bottom:18px;
+  }
+  .ctrl-btn{
+    background:none;
+    border:none;
+    color:var(--paper);
+    font-size:20px;
+    cursor:pointer;
+    padding:10px;
+    border-radius:50%;
+    line-height:1;
+  }
+  .ctrl-btn:active{ background:rgba(255,255,255,0.06); }
+  #playBtn{
+    width:64px;
+    height:64px;
+    background:var(--brass);
+    color:var(--ink);
+    font-size:24px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+  }
+  #playBtn:active{ background:var(--brass-light); }
+
+  .speedpanel{
+    background:var(--panel);
+    border:1px solid var(--panel-edge);
+    border-radius:var(--radius);
+    padding:14px 16px 16px;
+  }
+  .speedpanel .row1{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:8px;
+  }
+  .speedpanel .label{
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .speedpanel .ppmval{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color:var(--paper);
+  }
+  .speedpanel .liverate{
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--brass-light);
+  }
+  input[type=range]{
+    width:100%;
+    accent-color:var(--brass);
+    margin:4px 0 10px;
+  }
+  .toggle-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:13px;
+    color:var(--paper-dim);
+  }
+  .switch{
+    position:relative;
+    width:38px;
+    height:22px;
+  }
+  .switch input{ opacity:0; width:0; height:0; }
+  .slider-pill{
+    position:absolute; inset:0;
+    background:var(--panel-edge);
+    border-radius:22px;
+    transition:.15s;
+    cursor:pointer;
+  }
+  .slider-pill:before{
+    content:"";
+    position:absolute;
+    height:16px; width:16px;
+    left:3px; top:3px;
+    background:var(--paper-dim);
+    border-radius:50%;
+    transition:.15s;
+  }
+  input:checked + .slider-pill{ background:var(--brass); }
+  input:checked + .slider-pill:before{ transform:translateX(16px); background:var(--ink); }
+
+  .footnote{
+    text-align:center;
+    color:var(--muted);
+    font-size:11px;
+    margin-top:14px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="eyebrow">Lector RSVP</div>
+
+  <!-- UPLOAD SCREEN -->
+  <div id="uploadScreen" class="upload-screen">
+    <div class="lede">Lee tus <em>epub</em><br>a la velocidad de tu mente.</div>
+    <div class="sub">Sube un libro y la app te lo muestra palabra por palabra, en el centro de la mirada, a un ritmo que se ajusta solo.</div>
+
+    <div id="dropZone" class="dropzone">
+      <div class="icon">⌗</div>
+      <div class="cta">Toca para subir tu .epub</div>
+      <div class="hint">o arrástralo aquí</div>
+    </div>
+    <input type="file" id="fileInput" accept=".epub,application/epub+zip">
+
+    <div id="errorBanner" class="errorBanner hidden"></div>
+    <div id="loadingBanner" class="loadingBanner hidden">Leyendo el libro…</div>
+  </div>
+
+  <!-- READER SCREEN -->
+  <div id="readerScreen" class="reader-screen hidden">
+    <div class="topbar">
+      <div>
+        <div class="eyebrow" style="margin:0 0 2px;">Leyendo</div>
+        <div id="bookTitle" class="booktitle"></div>
+      </div>
+      <select id="chapterSelect"></select>
+    </div>
+
+    <div id="resumeBanner" class="resumeBanner hidden">
+      <span id="resumeText"></span>
+      <div class="resumeActions">
+        <button id="resumeBtn" class="resumeBtnPrimary">Continuar</button>
+        <button id="restartBtn" class="resumeBtnGhost">Empezar de nuevo</button>
+      </div>
+    </div>
+
+    <div id="stage" class="stage" aria-label="Toca para pausar o reanudar">
+      <div class="guide-tick top"></div>
+      <div class="wordrow">
+        <span id="wordLeft"></span><span id="wordPivot">·</span><span id="wordRight"></span>
+      </div>
+      <div class="guide-tick bottom"></div>
+      <div class="stage-hint">toca para pausar</div>
+      <div id="savedBadge" class="savedBadge hidden">progreso guardado</div>
+    </div>
+
+    <div class="progress"><div id="progressFill" class="progress-fill"></div></div>
+    <div id="progressLabel" class="progress-label">0 / 0</div>
+
+    <div class="controls">
+      <button id="prevBtn" class="ctrl-btn" aria-label="Retroceder">⟲ 10</button>
+      <button id="playBtn" aria-label="Reproducir">▶</button>
+      <button id="nextBtn" class="ctrl-btn" aria-label="Avanzar">10 ⟳</button>
+    </div>
+
+    <div class="speedpanel">
+      <div class="row1">
+        <span class="label">Velocidad base</span>
+        <span class="ppmval"><span id="ppmValue">320</span> ppm</span>
+      </div>
+      <input type="range" id="ppmSlider" min="120" max="700" step="10" value="320">
+      <div class="toggle-row">
+        <span>Modo adaptativo · ritmo real <span class="liverate" id="liveRate">320</span> ppm</span>
+        <label class="switch">
+          <input type="checkbox" id="adaptiveToggle" checked>
+          <span class="slider-pill"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="footnote">espacio: pausa · ← →: saltar 10 palabras</div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
